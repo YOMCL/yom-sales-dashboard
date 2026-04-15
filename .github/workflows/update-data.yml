@@ -1,0 +1,32 @@
+name: Update Sales Data
+
+on:
+  schedule:
+    - cron: '0 10 * * *'   # 10:00 UTC = 07:00 Chile
+  workflow_dispatch:         # disparo manual desde GitHub Actions UI
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install mongosh
+        run: npm install -g mongosh
+
+      - name: Extract data from MongoDB
+        env:
+          MONGO_URI: ${{ secrets.MONGO_LEGACY_URI }}
+        run: mongosh "$MONGO_URI" --quiet --file extract.js > data.js
+
+      - name: Commit and push updated data.js
+        run: |
+          git config user.name  "yom-bot"
+          git config user.email "bot@yom.ai"
+          git add data.js
+          git diff --staged --quiet && echo "No changes" || \
+          git commit -m "chore: update sales data $(date -u +%Y-%m-%d)" && git push

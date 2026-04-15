@@ -1,34 +1,30 @@
 // ============================================================
 // YOM Sales Dashboard — Extract Script
 // Uso: mongosh "<MONGO_URI>" --quiet --file extract.js > data.js
-//
-// Extrae para cada cliente configurado en CLIENTS:
-//   - Órdenes, comercios distintos, vendedores distintos
-//   - Venta sin IVA / con IVA
-//   - Desglose mensual
-//   - Top 10 vendedores
-//   - Rango de fechas
 // ============================================================
 
 const STATUS = 'processing';
 
-// Clientes a incluir — { domain, displayName }
+// Últimos 12 meses
+const date12ago = new Date();
+date12ago.setMonth(date12ago.getMonth() - 12);
+
 const CLIENTS = [
-  { domain: 'soprole.youorder.me',          name: 'Soprole' },
-  { domain: 'codelpa.youorder.me',           name: 'Codelpa' },
-  { domain: 'codelpa-peru.youorder.me',      name: 'Codelpa Perú' },
-  { domain: 'softys-cencocal.youorder.me',   name: 'Softys-Cencocal' },
-  { domain: 'softys-dimak.youorder.me',      name: 'Dimak' },
-  { domain: 'surtiventas.youorder.me',       name: 'Surtiventas' },
-  { domain: 'elmuneco.youorder.me',          name: 'El Muñeco' },
-  { domain: 'marleycoffee.youorder.me',      name: 'Marley Coffee' },
-  { domain: 'prisa.youorder.me',             name: 'Prisa' },
-  { domain: 'caren.youorder.me',             name: 'Caren' },
-  { domain: 'coexito.youorder.me',           name: 'CoÉxito' },
-  { domain: 'bastien.youorder.me',           name: 'Bastien' },
-  { domain: 'sonrie.youorder.me',            name: 'Sonrie' },
-  { domain: 'expressdent.youorder.me',       name: 'ExpressDent' },
-  { domain: 'prisur.youorder.me',            name: 'Prisur' },
+  { domain: 'soprole.youorder.me',         name: 'Soprole',         currency: 'CLP' },
+  { domain: 'codelpa.youorder.me',          name: 'Codelpa',         currency: 'CLP' },
+  { domain: 'codelpa-peru.youorder.me',     name: 'Codelpa Perú',    currency: 'CLP' },
+  { domain: 'softys-cencocal.youorder.me',  name: 'Softys-Cencocal', currency: 'CLP' },
+  { domain: 'softys-dimak.youorder.me',     name: 'Dimak',           currency: 'CLP' },
+  { domain: 'surtiventas.youorder.me',      name: 'Surtiventas',     currency: 'CLP' },
+  { domain: 'elmuneco.youorder.me',         name: 'El Muñeco',       currency: 'CLP' },
+  { domain: 'marleycoffee.youorder.me',     name: 'Marley Coffee',   currency: 'CLP' },
+  { domain: 'prisa.youorder.me',            name: 'Prisa',           currency: 'CLP' },
+  { domain: 'caren.youorder.me',            name: 'Caren',           currency: 'CLP' },
+  { domain: 'coexito.youorder.me',          name: 'CoÉxito',         currency: 'CLP', fxRate: 0.25 },  // COP→CLP ÷4
+  { domain: 'bastien.youorder.me',          name: 'Bastien',         currency: 'CLP' },
+  { domain: 'sonrie.youorder.me',           name: 'Sonrie',          currency: 'CLP' },
+  { domain: 'expressdent.youorder.me',      name: 'ExpressDent',     currency: 'CLP' },
+  { domain: 'prisur.youorder.me',           name: 'Prisur',          currency: 'CLP' },
 ];
 
 const data = {
@@ -37,104 +33,94 @@ const data = {
 };
 
 for (const client of CLIENTS) {
-  const domain = client.domain;
+  const { domain, name, currency, fxRate = 1 } = client;
 
-  // --- Totales ---
+  // ── Totales all-time ─────────────────────────────────────
   const totales = db.orders.aggregate([
     { $match: { domain, status: STATUS } },
     { $group: {
       _id: null,
-      ordenes: { $sum: 1 },
+      ordenes:     { $sum: 1 },
       ventaSinIVA: { $sum: '$pricing.totalPrice' },
       ventaConIVA: { $sum: '$pricing.finalTotalPrice' },
       primeraOrden: { $min: { $toDate: '$createdAt' } },
-      ultimaOrden: { $max: { $toDate: '$createdAt' } }
+      ultimaOrden:  { $max: { $toDate: '$createdAt' } }
     }}
   ]).toArray()[0];
 
-  // Sin datos — incluir igualmente con zeros
   if (!totales) {
     data.clients.push({
-      domain,
-      name: client.name,
-      sinDatos: true,
-      ordenes: 0, comercios: 0, vendedores: 0,
+      domain, name, currency, sinDatos: true,
+      ordenes: 0, comercios: 0, comerciosRegistrados: 0,
       ventaSinIVA: 0, ventaConIVA: 0,
-      primeraOrden: null, ultimaOrden: null,
-      mensual: [], topVendedores: []
+      primeraOrden: null, ultimaOrden: null, mensual: []
     });
     continue;
   }
 
-  // --- Comercios distintos con orden ---
+  // ── Comercios distintos con orden (all-time) ──────────────
   const comercios = db.orders.distinct('commerceId', { domain, status: STATUS }).length;
 
-  // --- Vendedores distintos con orden ---
-  const vendedoresRaw = db.orders.distinct('sellerId', { domain, status: STATUS });
-  const vendedores = [...new Set(vendedoresRaw.flat())].length;
+  // ── Comercios registrados (activos en collection) ─────────
+  const comerciosRegistrados = db.commerces.countDocuments({ domain, active: true });
 
-  // --- Desglose mensual ---
-  const mensual = db.orders.aggregate([
-    { $match: { domain, status: STATUS, createdAt: { $ne: null } } },
+  // ── Pipeline 1: métricas mensuales (últimos 12 meses) ─────
+  // Usar $expr para soportar createdAt tanto ISODate como string
+  const metricasMes = db.orders.aggregate([
+    { $match: { domain, status: STATUS, createdAt: { $ne: null },
+        $expr: { $gte: [ { $toDate: '$createdAt' }, date12ago ] } } },
     { $group: {
       _id: {
         year:  { $year:  { $toDate: '$createdAt' } },
         month: { $month: { $toDate: '$createdAt' } }
       },
-      ordenes:    { $sum: 1 },
+      ordenes:     { $sum: 1 },
       ventaSinIVA: { $sum: '$pricing.totalPrice' },
       ventaConIVA: { $sum: '$pricing.finalTotalPrice' }
     }},
     { $sort: { '_id.year': 1, '_id.month': 1 } }
-  ]).toArray().map(m => ({
-    year:        m._id.year,
-    month:       m._id.month,
-    ordenes:     m.ordenes,
-    ventaSinIVA: Math.round(m.ventaSinIVA),
-    ventaConIVA: Math.round(m.ventaConIVA)
-  }));
+  ]).toArray();
 
-  // --- Top 10 vendedores ---
-  const topVendedores = db.orders.aggregate([
-    { $match: { domain, status: STATUS } },
-    { $unwind: '$sellerId' },
-    { $addFields: { sellerObjId: { $convert: { input: '$sellerId', to: 'objectId', onError: null, onNull: null } } } },
-    { $match: { sellerObjId: { $ne: null } } },
+  // ── Pipeline 2: comercios activos por mes (double-group) ──
+  const comerciosMes = db.orders.aggregate([
+    { $match: { domain, status: STATUS, createdAt: { $ne: null }, commerceId: { $ne: null },
+      $expr: { $gte: [ { $toDate: '$createdAt' }, date12ago ] } } },
+    { $group: { _id: {
+      year:       { $year:  { $toDate: '$createdAt' } },
+      month:      { $month: { $toDate: '$createdAt' } },
+      commerceId: '$commerceId'
+    }}},
     { $group: {
-      _id: '$sellerObjId',
-      ordenes:     { $sum: 1 },
-      ventaSinIVA: { $sum: '$pricing.totalPrice' }
-    }},
-    { $sort: { ventaSinIVA: -1 } },
-    { $limit: 10 },
-    { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-    { $project: {
-      ordenes: 1,
-      ventaSinIVA: { $round: ['$ventaSinIVA', 0] },
-      nombre: { $arrayElemAt: ['$user.name', 0] },
-      email:  { $arrayElemAt: ['$user.email', 0] }
+      _id: { year: '$_id.year', month: '$_id.month' },
+      comerciosActivos: { $sum: 1 }
     }}
-  ]).toArray().map(s => ({
-    id:          s._id.toString(),
-    nombre:      s.nombre || 'Sin nombre',
-    email:       s.email  || '',
-    ordenes:     s.ordenes,
-    ventaSinIVA: s.ventaSinIVA
+  ]).toArray();
+
+  // Merge de ambos pipelines por year+month
+  const comerciosMesMap = {};
+  comerciosMes.forEach(c => {
+    comerciosMesMap[`${c._id.year}-${c._id.month}`] = c.comerciosActivos;
+  });
+
+  const mensual = metricasMes.map(m => ({
+    year:             m._id.year,
+    month:            m._id.month,
+    ordenes:          m.ordenes,
+    ventaSinIVA:      Math.round(m.ventaSinIVA * fxRate),
+    ventaConIVA:      Math.round(m.ventaConIVA * fxRate),
+    comerciosActivos: comerciosMesMap[`${m._id.year}-${m._id.month}`] || 0
   }));
 
   data.clients.push({
-    domain,
-    name:        client.name,
-    sinDatos:    false,
-    ordenes:     totales.ordenes,
+    domain, name, currency, sinDatos: false,
+    ordenes:              totales.ordenes,
     comercios,
-    vendedores,
-    ventaSinIVA: Math.round(totales.ventaSinIVA),
-    ventaConIVA: Math.round(totales.ventaConIVA),
-    primeraOrden: totales.primeraOrden,
-    ultimaOrden:  totales.ultimaOrden,
-    mensual,
-    topVendedores
+    comerciosRegistrados,
+    ventaSinIVA:          Math.round(totales.ventaSinIVA * fxRate),
+    ventaConIVA:          Math.round(totales.ventaConIVA * fxRate),
+    primeraOrden:         totales.primeraOrden,
+    ultimaOrden:          totales.ultimaOrden,
+    mensual
   });
 }
 
