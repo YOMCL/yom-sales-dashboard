@@ -36,12 +36,12 @@
     <div class="flex items-center gap-3">
       <div class="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">Y</div>
       <span class="font-semibold text-gray-900">YOM Sales</span>
-      <span class="text-xs text-gray-400 hidden sm:block">Legacy Production · Todos los montos en CLP</span>
+      <span class="text-xs text-gray-400 hidden sm:block">Legacy Production · Todos los montos en pesos chilenos ($)</span>
     </div>
     <div class="flex items-center gap-4">
       <div id="hdr-gmv" class="text-right hidden md:block">
         <div class="font-bold text-gray-900 text-sm" id="hdr-total">—</div>
-        <div class="text-xs text-gray-400">GMV sin IVA (12m)</div>
+        <div class="text-xs text-gray-400">Ventas sin IVA (12m)</div>
       </div>
       <div class="text-xs text-gray-400" id="hdr-ts">—</div>
     </div>
@@ -78,10 +78,10 @@
 
       <!-- Tabs métricas -->
       <div class="flex gap-5 border-b border-gray-100 mb-4">
-        <button class="metric-tab active pb-2 text-sm" data-metric="ventaSinIVA">GMV sin IVA</button>
-        <button class="metric-tab pb-2 text-sm text-gray-500" data-metric="ventaConIVA">GMV con IVA</button>
+        <button class="metric-tab active pb-2 text-sm" data-metric="ventaSinIVA">Ventas sin IVA</button>
+        <button class="metric-tab pb-2 text-sm text-gray-500" data-metric="ventaConIVA">Ventas con IVA</button>
         <button class="metric-tab pb-2 text-sm text-gray-500" data-metric="ordenes">Órdenes</button>
-        <button class="metric-tab pb-2 text-sm text-gray-500" data-metric="comerciosActivos">Com. Activos</button>
+        <button class="metric-tab pb-2 text-sm text-gray-500" data-metric="comerciosActivos">Comercios activos</button>
       </div>
 
       <!-- Gráfico mensual -->
@@ -101,11 +101,11 @@
               <th class="px-4 py-2.5 text-right">Órdenes</th>
               <th class="px-4 py-2.5 text-right">Com. Activos</th>
               <th class="px-4 py-2.5 text-right">% Activación</th>
-              <th class="px-4 py-2.5 text-right">GMV sin IVA</th>
-              <th class="px-4 py-2.5 text-right">GMV con IVA</th>
-              <th class="px-4 py-2.5 text-right">Ticket prom.</th>
-              <th class="px-4 py-2.5 text-right">Frec. compra</th>
-              <th class="px-4 py-2.5 text-right">MoM %</th>
+              <th class="px-4 py-2.5 text-right">Ventas sin IVA</th>
+              <th class="px-4 py-2.5 text-right">Ventas con IVA</th>
+              <th class="px-4 py-2.5 text-right">Pedido prom.</th>
+              <th class="px-4 py-2.5 text-right">Pedidos/comercio</th>
+              <th class="px-4 py-2.5 text-right">Var. mensual</th>
             </tr>
           </thead>
           <tbody id="monthly-tbody"></tbody>
@@ -189,8 +189,8 @@ function renderGlobal() {
   document.getElementById('hdr-total').textContent = clpM(gmv12);
 
   document.getElementById('global-kpis').innerHTML = [
-    { label: 'GMV sin IVA (12m)',       value: clpM(gmv12),         sub: cl.length + ' clientes activos',       color: 'text-blue-700' },
-    { label: 'Órdenes (12m)',            value: num(ords12),          sub: 'status: processing',                  color: 'text-gray-900' },
+    { label: 'Ventas sin IVA (12m)',     value: clpM(gmv12),         sub: cl.length + ' clientes activos',       color: 'text-blue-700' },
+    { label: 'Pedidos (12m)',            value: num(ords12),          sub: 'órdenes procesadas',                  color: 'text-gray-900' },
     { label: 'Comercios activos',        value: num(totalComs),       sub: 'con al menos 1 orden',                color: 'text-gray-900' },
     { label: 'Tasa activación global',   value: pct(actRate),         sub: totalComs + ' de ' + num(totalReg) + ' registrados', color: actRate >= 50 ? 'text-green-700' : 'text-orange-600' },
   ].map(k => `
@@ -222,19 +222,21 @@ function renderGrid() {
     const actRate = c.comerciosRegistrados > 0
       ? (lastM ? lastM.comerciosActivos / c.comerciosRegistrados * 100 : 0) : null;
 
+    const inactivo = !lastM;
     return `
-      <div class="card client-card p-3" data-domain="${c.domain}">
+      <div class="card client-card p-3 ${inactivo ? 'opacity-60' : ''}" data-domain="${c.domain}">
         <div class="flex items-center justify-between">
           <div class="text-xs font-bold text-gray-800 truncate">${c.name}</div>
-          ${c.currency === 'COP' ? `<span class="text-xs bg-orange-100 text-orange-600 rounded px-1">COP</span>` : ''}
+          ${inactivo ? `<span class="text-xs bg-gray-100 text-gray-500 rounded px-1">sin actividad</span>` :
+            c.currency === 'COP' ? `<span class="text-xs bg-orange-100 text-orange-600 rounded px-1">COP</span>` : ''}
         </div>
-        <div class="text-base font-bold text-blue-700 mt-1.5 leading-none">${lastM ? clpM(lastM.ventaSinIVA) : '—'}</div>
-        <div class="text-xs text-gray-500 mt-0.5">${lastM ? mLabel(lastM.year, lastM.month) : ''}</div>
+        <div class="text-base font-bold ${inactivo ? 'text-gray-400' : 'text-blue-700'} mt-1.5 leading-none">${lastM ? clpM(lastM.ventaSinIVA) : clpM(c.ventaSinIVA)}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${inactivo ? 'Último: ' + dateStr(c.ultimaOrden) : mLabel(lastM.year, lastM.month)}</div>
         <div class="flex items-center justify-between mt-2">
-          <span class="text-xs text-gray-400">${lastM ? num(lastM.ordenes) + ' órd.' : ''}</span>
+          <span class="text-xs text-gray-400">${lastM ? num(lastM.ordenes) + ' pedidos' : num(c.ordenes) + ' total'}</span>
           <span class="${momCls} text-xs font-semibold">${momSign}${momVal != null ? Math.abs(momVal).toFixed(1)+'%' : ''}</span>
         </div>
-        ${actRate != null ? `<div class="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden">
+        ${!inactivo && actRate != null ? `<div class="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden">
           <div class="h-1 rounded-full ${actRate >= 50 ? 'bg-green-400' : 'bg-orange-400'}" style="width:${Math.min(100,actRate).toFixed(0)}%"></div>
         </div>
         <div class="text-xs text-gray-400 mt-0.5">${actRate.toFixed(0)}% activación</div>` : ''}
@@ -278,14 +280,14 @@ function openClient(client) {
   const avgFreq   = client.comercios > 0 ? client.ordenes / client.comercios : 0;
 
   document.getElementById('d-kpis').innerHTML = [
-    { label: 'GMV sin IVA (total)',   value: clpM(client.ventaSinIVA),        sub: 'all-time processing' },
-    { label: 'Órdenes (total)',        value: num(client.ordenes),              sub: 'processing' },
-    { label: 'Comercios activos',      value: num(client.comercios),            sub: 'de ' + num(client.comerciosRegistrados) + ' registrados' },
-    { label: 'MoM último mes',         value: momBadge(momGMV),                sub: lastM ? mLabel(lastM.year, lastM.month) : '—' },
-    { label: 'Tasa activación (max)',  value: actRate12 != null ? pct(actRate12) : '—', sub: 'máx. mensual 12m' },
-    { label: 'Ticket promedio',        value: clpM(avgTicket),                 sub: 'GMV/órdenes all-time' },
-    { label: 'Frec. compra',           value: avgFreq.toFixed(1) + 'x',        sub: 'órdenes/comercio' },
-    { label: 'GMV con IVA (total)',    value: clpM(client.ventaConIVA),        sub: 'all-time processing' },
+    { label: 'Ventas sin IVA (total)',  value: clpM(client.ventaSinIVA),        sub: 'historial completo' },
+    { label: 'Ventas con IVA (total)', value: clpM(client.ventaConIVA),        sub: 'historial completo' },
+    { label: 'Pedidos (total)',         value: num(client.ordenes),              sub: 'órdenes procesadas' },
+    { label: 'Comercios compradores',  value: num(client.comercios),            sub: 'de ' + num(client.comerciosRegistrados) + ' registrados' },
+    { label: 'Var. mes anterior',      value: momBadge(momGMV),                sub: lastM ? mLabel(lastM.year, lastM.month) : 'sin datos recientes' },
+    { label: '% Comercios activos',    value: actRate12 != null ? pct(actRate12) : '—', sub: 'máximo mensual en 12m' },
+    { label: 'Valor pedido promedio',  value: clpM(avgTicket),                 sub: 'ventas / pedidos' },
+    { label: 'Pedidos por comercio',   value: avgFreq.toFixed(1) + 'x',        sub: 'frecuencia de compra' },
   ].map(k => `
     <div class="bg-gray-50 rounded-lg px-3 py-2.5 text-right">
       <div class="text-base font-bold text-gray-900">${k.value}</div>
@@ -312,8 +314,8 @@ function renderChart() {
   const momVals = mn.map((m,i) => i === 0 ? null : mom(mn, i, activeMetric));
 
   const metricLabels = {
-    ventaSinIVA: 'GMV sin IVA', ventaConIVA: 'GMV con IVA',
-    ordenes: 'Órdenes', comerciosActivos: 'Com. Activos'
+    ventaSinIVA: 'Ventas sin IVA', ventaConIVA: 'Ventas con IVA',
+    ordenes: 'Pedidos', comerciosActivos: 'Comercios activos'
   };
   const isMoney = activeMetric === 'ventaSinIVA' || activeMetric === 'ventaConIVA';
 
@@ -332,7 +334,7 @@ function renderChart() {
         },
         {
           type: 'line',
-          label: 'MoM %',
+          label: 'Var. mensual %',
           data: momVals,
           borderColor: '#f59e0b',
           backgroundColor: 'transparent',
@@ -356,7 +358,7 @@ function renderChart() {
             label: ctx => {
               if (ctx.datasetIndex === 0) return ` ${metricLabels[activeMetric]}: ${isMoney ? clpM(ctx.raw) : num(ctx.raw)}`;
               if (ctx.raw == null) return null;
-              return ` MoM: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(1)}%`;
+              return ` Var. mensual: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(1)}%`;
             }
           }
         }
