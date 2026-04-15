@@ -64,6 +64,10 @@ for (const client of CLIENTS) {
   // ── Comercios registrados (activos en collection) ─────────
   const comerciosRegistrados = db.commerces.countDocuments({ domain, active: true });
 
+  // ── Vendedores distintos con orden (all-time) ─────────────
+  const vendedoresRaw = db.orders.distinct('sellerId', { domain, status: statusFilter });
+  const vendedores = [...new Set(vendedoresRaw.flat().filter(v => v))].length;
+
   // ── Pipeline 1: métricas mensuales (últimos 12 meses) ─────
   // Usar $expr para soportar createdAt tanto ISODate como string
   const metricasMes = db.orders.aggregate([
@@ -96,10 +100,32 @@ for (const client of CLIENTS) {
     }}
   ]).toArray();
 
-  // Merge de ambos pipelines por year+month
+  // ── Pipeline 3: vendedores activos por mes (double-group) ──
+  const vendedoresMes = db.orders.aggregate([
+    { $match: { domain, status: statusFilter, createdAt: { $ne: null },
+      $expr: { $gte: [ { $toDate: '$createdAt' }, date12ago ] } } },
+    { $unwind: '$sellerId' },
+    { $addFields: { sellerObjId: { $convert: { input: '$sellerId', to: 'objectId', onError: null, onNull: null } } } },
+    { $match: { sellerObjId: { $ne: null } } },
+    { $group: { _id: {
+      year:     { $year:  { $toDate: '$createdAt' } },
+      month:    { $month: { $toDate: '$createdAt' } },
+      sellerId: '$sellerObjId'
+    }}},
+    { $group: {
+      _id: { year: '$_id.year', month: '$_id.month' },
+      vendedoresActivos: { $sum: 1 }
+    }}
+  ]).toArray();
+
+  // Merge de los tres pipelines por year+month
   const comerciosMesMap = {};
   comerciosMes.forEach(c => {
     comerciosMesMap[`${c._id.year}-${c._id.month}`] = c.comerciosActivos;
+  });
+  const vendedoresMesMap = {};
+  vendedoresMes.forEach(v => {
+    vendedoresMesMap[`${v._id.year}-${v._id.month}`] = v.vendedoresActivos;
   });
 
   const mensual = metricasMes.map(m => ({
@@ -108,7 +134,8 @@ for (const client of CLIENTS) {
     ordenes:          m.ordenes,
     ventaSinIVA:      Math.round(m.ventaSinIVA * fxRate),
     ventaConIVA:      Math.round(m.ventaConIVA * fxRate),
-    comerciosActivos: comerciosMesMap[`${m._id.year}-${m._id.month}`] || 0
+    comerciosActivos:   comerciosMesMap[`${m._id.year}-${m._id.month}`]   || 0,
+    vendedoresActivos:  vendedoresMesMap[`${m._id.year}-${m._id.month}`]  || 0
   }));
 
   data.clients.push({
@@ -116,6 +143,7 @@ for (const client of CLIENTS) {
     ordenes:              totales.ordenes,
     comercios,
     comerciosRegistrados,
+    vendedores,
     ventaSinIVA:          Math.round(totales.ventaSinIVA * fxRate),
     ventaConIVA:          Math.round(totales.ventaConIVA * fxRate),
     primeraOrden:         totales.primeraOrden,

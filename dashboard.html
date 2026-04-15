@@ -98,12 +98,15 @@
           <thead class="bg-gray-50">
             <tr>
               <th class="px-4 py-2.5 text-left">Mes</th>
-              <th class="px-4 py-2.5 text-right">Órdenes</th>
-              <th class="px-4 py-2.5 text-right">Com. Activos</th>
+              <th class="px-4 py-2.5 text-right">Pedidos</th>
+              <th class="px-4 py-2.5 text-right">Vendedores</th>
+              <th class="px-4 py-2.5 text-right">Comercios</th>
               <th class="px-4 py-2.5 text-right">% Activación</th>
               <th class="px-4 py-2.5 text-right">Ventas sin IVA</th>
               <th class="px-4 py-2.5 text-right">Ventas con IVA</th>
+              <th class="px-4 py-2.5 text-right">Venta/vendedor</th>
               <th class="px-4 py-2.5 text-right">Pedido prom.</th>
+              <th class="px-4 py-2.5 text-right">Pedidos/vendedor</th>
               <th class="px-4 py-2.5 text-right">Pedidos/comercio</th>
               <th class="px-4 py-2.5 text-right">Var. mensual</th>
             </tr>
@@ -276,18 +279,25 @@ function openClient(client) {
     ? (lastM.ventaSinIVA - prevM.ventaSinIVA) / prevM.ventaSinIVA * 100 : null;
   const actRate12 = client.comerciosRegistrados > 0
     ? client.mensual.reduce((a,m) => Math.max(a, m.comerciosActivos), 0) / client.comerciosRegistrados * 100 : null;
-  const avgTicket = client.ordenes > 0 ? client.ventaSinIVA / client.ordenes : 0;
-  const avgFreq   = client.comercios > 0 ? client.ordenes / client.comercios : 0;
+  const avgTicket      = client.ordenes    > 0 ? client.ventaSinIVA  / client.ordenes    : 0;
+  const avgFreqCom     = client.comercios  > 0 ? client.ordenes     / client.comercios   : 0;
+  const avgFreqVend    = client.vendedores > 0 ? client.ordenes     / client.vendedores  : 0;
+  const ventaXVendedor = client.vendedores > 0 ? client.ventaSinIVA / client.vendedores  : 0;
+  const comXVendedor   = client.vendedores > 0 ? client.comercios   / client.vendedores  : 0;
 
   document.getElementById('d-kpis').innerHTML = [
-    { label: 'Ventas sin IVA (total)',  value: clpM(client.ventaSinIVA),        sub: 'historial completo' },
-    { label: 'Ventas con IVA (total)', value: clpM(client.ventaConIVA),        sub: 'historial completo' },
-    { label: 'Pedidos (total)',         value: num(client.ordenes),              sub: 'órdenes procesadas' },
-    { label: 'Comercios compradores',  value: num(client.comercios),            sub: 'de ' + num(client.comerciosRegistrados) + ' registrados' },
-    { label: 'Var. mes anterior',      value: momBadge(momGMV),                sub: lastM ? mLabel(lastM.year, lastM.month) : 'sin datos recientes' },
-    { label: '% Comercios activos',    value: actRate12 != null ? pct(actRate12) : '—', sub: 'máximo mensual en 12m' },
-    { label: 'Valor pedido promedio',  value: clpM(avgTicket),                 sub: 'ventas / pedidos' },
-    { label: 'Pedidos por comercio',   value: avgFreq.toFixed(1) + 'x',        sub: 'frecuencia de compra' },
+    { label: 'Ventas sin IVA',         value: clpM(client.ventaSinIVA),                          sub: 'historial completo' },
+    { label: 'Ventas con IVA',         value: clpM(client.ventaConIVA),                          sub: 'historial completo' },
+    { label: 'Pedidos totales',        value: num(client.ordenes),                               sub: 'órdenes procesadas' },
+    { label: 'Vendedores activos',     value: num(client.vendedores),                            sub: 'con al menos 1 pedido' },
+    { label: 'Comercios compradores',  value: num(client.comercios),                             sub: 'de ' + num(client.comerciosRegistrados) + ' registrados' },
+    { label: 'Var. mes anterior',      value: momBadge(momGMV),                                  sub: lastM ? mLabel(lastM.year, lastM.month) : 'sin datos recientes' },
+    { label: 'Venta por vendedor',     value: clpM(ventaXVendedor),                              sub: 'ventas / vendedores' },
+    { label: 'Pedidos por vendedor',   value: avgFreqVend.toFixed(1) + 'x',                      sub: 'productividad vendedor' },
+    { label: 'Comercios por vendedor', value: comXVendedor.toFixed(1),                           sub: 'cobertura promedio' },
+    { label: 'Pedido promedio',        value: clpM(avgTicket),                                   sub: 'ventas / pedidos' },
+    { label: 'Pedidos por comercio',   value: avgFreqCom.toFixed(1) + 'x',                       sub: 'frecuencia de compra' },
+    { label: '% Comercios activos',    value: actRate12 != null ? pct(actRate12) : '—',          sub: 'máx. mensual 12m' },
   ].map(k => `
     <div class="bg-gray-50 rounded-lg px-3 py-2.5 text-right">
       <div class="text-base font-bold text-gray-900">${k.value}</div>
@@ -389,19 +399,24 @@ function renderTable() {
   mn.forEach(m => { totOrd+=m.ordenes; totSin+=m.ventaSinIVA; totCon+=m.ventaConIVA; });
 
   document.getElementById('monthly-tbody').innerHTML = mn.map((m, i) => {
-    const momVal  = mom(mn, i, 'ventaSinIVA');
-    const actPct  = reg > 0 ? m.comerciosActivos / reg * 100 : null;
-    const ticket  = m.ordenes > 0 ? m.ventaSinIVA / m.ordenes : 0;
-    const freq    = m.comerciosActivos > 0 ? m.ordenes / m.comerciosActivos : 0;
+    const momVal      = mom(mn, i, 'ventaSinIVA');
+    const actPct      = reg > 0 ? m.comerciosActivos / reg * 100 : null;
+    const ticket      = m.ordenes > 0 ? m.ventaSinIVA / m.ordenes : 0;
+    const freqCom     = m.comerciosActivos  > 0 ? m.ordenes / m.comerciosActivos  : 0;
+    const freqVend    = m.vendedoresActivos > 0 ? m.ordenes / m.vendedoresActivos : 0;
+    const ventaVend   = m.vendedoresActivos > 0 ? m.ventaSinIVA / m.vendedoresActivos : 0;
     return `<tr class="border-t border-gray-50 hover:bg-blue-50/40">
       <td class="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">${mLabel(m.year, m.month)}</td>
       <td class="px-4 py-2.5 text-right tabular-nums">${num(m.ordenes)}</td>
+      <td class="px-4 py-2.5 text-right tabular-nums">${num(m.vendedoresActivos)}</td>
       <td class="px-4 py-2.5 text-right tabular-nums">${num(m.comerciosActivos)}</td>
       <td class="px-4 py-2.5 text-right">${actPct != null ? pct(actPct) : '—'}</td>
       <td class="px-4 py-2.5 text-right font-medium tabular-nums">${clpM(m.ventaSinIVA)}</td>
       <td class="px-4 py-2.5 text-right text-gray-600 tabular-nums">${clpM(m.ventaConIVA)}</td>
+      <td class="px-4 py-2.5 text-right tabular-nums">${clpM(ventaVend)}</td>
       <td class="px-4 py-2.5 text-right tabular-nums">${clpM(ticket)}</td>
-      <td class="px-4 py-2.5 text-right tabular-nums">${freq.toFixed(1)}x</td>
+      <td class="px-4 py-2.5 text-right tabular-nums">${freqVend.toFixed(1)}x</td>
+      <td class="px-4 py-2.5 text-right tabular-nums">${freqCom.toFixed(1)}x</td>
       <td class="px-4 py-2.5 text-right">${momBadge(momVal)}</td>
     </tr>`;
   }).join('');
@@ -411,9 +426,12 @@ function renderTable() {
     <td class="px-4 py-2.5 text-right tabular-nums">${num(totOrd)}</td>
     <td class="px-4 py-2.5 text-right">—</td>
     <td class="px-4 py-2.5 text-right">—</td>
+    <td class="px-4 py-2.5 text-right">—</td>
     <td class="px-4 py-2.5 text-right tabular-nums">${clpM(totSin)}</td>
     <td class="px-4 py-2.5 text-right tabular-nums">${clpM(totCon)}</td>
+    <td class="px-4 py-2.5 text-right">—</td>
     <td class="px-4 py-2.5 text-right tabular-nums">${clpM(totOrd > 0 ? totSin/totOrd : 0)}</td>
+    <td class="px-4 py-2.5 text-right">—</td>
     <td class="px-4 py-2.5 text-right">—</td>
     <td class="px-4 py-2.5 text-right">—</td>
   </tr>`;
