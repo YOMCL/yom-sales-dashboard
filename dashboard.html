@@ -21,6 +21,7 @@
     .metric-tab { transition: all 0.12s; border-bottom: 2px solid transparent; }
     .metric-tab.active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
     th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+    th[title] { cursor: help; border-bottom: 1px dashed #cbd5e1; }
     .mom-positive { background: #dcfce7; color: #15803d; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
     .mom-negative { background: #fee2e2; color: #b91c1c; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
     .mom-flat     { background: #f1f5f9; color: #64748b; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
@@ -94,20 +95,20 @@
         <h3 class="font-semibold text-gray-800 text-sm">Desglose mensual — últimos 12 meses</h3>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" style="min-width:900px">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-4 py-2.5 text-left">Mes</th>
-              <th class="px-4 py-2.5 text-right">Pedidos</th>
-              <th class="px-4 py-2.5 text-right">Vendedores</th>
-              <th class="px-4 py-2.5 text-right">Comercios</th>
-              <th class="px-4 py-2.5 text-right">% Activación</th>
-              <th class="px-4 py-2.5 text-right">Ventas</th>
-              <th class="px-4 py-2.5 text-right">Venta/vendedor</th>
-              <th class="px-4 py-2.5 text-right">Pedido prom.</th>
-              <th class="px-4 py-2.5 text-right">Pedidos/vendedor</th>
-              <th class="px-4 py-2.5 text-right">Pedidos/comercio</th>
-              <th class="px-4 py-2.5 text-right">Var. mensual</th>
+              <th class="px-4 py-3 text-left whitespace-nowrap w-20">Mes</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Total de órdenes procesadas en el mes">Pedidos</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Vendedores distintos con al menos 1 pedido en el mes">Vendedores</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Comercios distintos que realizaron al menos 1 pedido en el mes">Comercios</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Comercios activos en el mes vs. total registrados en la plataforma">% Activación</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Ventas totales del mes (pricing.discountedTotalPrice)">Ventas</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Ventas del mes divididas entre vendedores activos">Venta / vendedor</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Ticket promedio: ventas divididas entre número de pedidos">Ticket promedio</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Pedidos del mes divididos entre vendedores activos — productividad por vendedor">Pedidos / vendedor</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Pedidos del mes divididos entre comercios activos — frecuencia de recompra">Pedidos / comercio</th>
+              <th class="px-4 py-3 text-right whitespace-nowrap" title="Variación porcentual de ventas respecto al mes anterior">Var. vs mes ant.</th>
             </tr>
           </thead>
           <tbody id="monthly-tbody"></tbody>
