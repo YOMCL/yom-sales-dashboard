@@ -275,6 +275,17 @@ const GROUPS = [
 ];
 const groupExpanded = {};
 
+// Fallback para data.js generados antes de que se agregara nativeCurrency
+const DOMAIN_NATIVE_CURRENCY = { 'coexito.youorder.me': 'COP' };
+function getNativeCurrency(client) {
+  return client.nativeCurrency || DOMAIN_NATIVE_CURRENCY[client.domain] || 'CLP';
+}
+
+function toggleGroup(gid) {
+  groupExpanded[gid] = !groupExpanded[gid];
+  renderGrid();
+}
+
 function clientCard(c) {
   if (c.sinDatos) return `
     <div class="client-card no-data rounded-lg px-3 py-2">
@@ -325,7 +336,7 @@ function renderGrid() {
     }, 0);
     html += `
       <div class="group-header flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer bg-slate-100 hover:bg-slate-200 mt-1"
-           data-group-id="${g.id}" style="transition:all 0.12s;">
+           onclick="toggleGroup('${g.id}')" style="transition:all 0.12s;">
         <span class="text-xs font-bold text-gray-700">${g.name}</span>
         <div class="flex items-center gap-1.5">
           <span class="text-xs font-bold text-blue-700">${fmtCM(groupGMV)}</span>
@@ -338,13 +349,6 @@ function renderGrid() {
   });
 
   document.getElementById('client-grid').innerHTML = html;
-
-  document.querySelectorAll('.group-header').forEach(el => {
-    el.addEventListener('click', () => {
-      groupExpanded[el.dataset.groupId] = !groupExpanded[el.dataset.groupId];
-      renderGrid();
-    });
-  });
 
   document.querySelectorAll('.client-card:not(.no-data)').forEach(el => {
     el.addEventListener('click', () => {
@@ -515,7 +519,7 @@ function openClient(client, resetFilter = true) {
   document.getElementById('d-badge').classList.add('hidden');
   document.getElementById('badge-name').textContent = client.name;
 
-  renderCurrencyPills(client.nativeCurrency);
+  renderCurrencyPills(getNativeCurrency(client));
 
   const sym = displayCurrency === 'USD' ? 'US$' : '$';
   document.getElementById('hdr-subtitle').textContent =
