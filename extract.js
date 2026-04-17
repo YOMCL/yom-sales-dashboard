@@ -15,21 +15,21 @@ date12ago.setMonth(date12ago.getMonth() - 12);
 
 const CLIENTS = [
   // Soprole usa 'pending' como status activo (su flujo no pasa a 'processing')
-  { domain: 'soprole.youorder.me',         name: 'Soprole',         currency: 'USD', fxRate: CLP_TO_USD, statuses: ['pending'] },
-  { domain: 'codelpa.youorder.me',          name: 'Codelpa',         currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'codelpa-peru.youorder.me',     name: 'Codelpa Perú',    currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'softys-cencocal.youorder.me',  name: 'Softys-Cencocal', currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'softys-dimak.youorder.me',     name: 'Dimak',           currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'surtiventas.youorder.me',      name: 'Surtiventas',     currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'elmuneco.youorder.me',         name: 'El Muñeco',       currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'marleycoffee.youorder.me',     name: 'Marley Coffee',   currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'prisa.youorder.me',            name: 'Prisa',           currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'caren.youorder.me',            name: 'Caren',           currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'coexito.youorder.me',          name: 'CoÉxito',         currency: 'USD', fxRate: COP_TO_USD },
-  { domain: 'bastien.youorder.me',          name: 'Bastien',         currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'sonrie.youorder.me',           name: 'Sonrie',          currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'expressdent.youorder.me',      name: 'ExpressDent',     currency: 'USD', fxRate: CLP_TO_USD },
-  { domain: 'prisur.youorder.me',           name: 'Prisur',          currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'soprole.youorder.me',         name: 'Soprole',         currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP', statuses: ['pending'] },
+  { domain: 'codelpa.youorder.me',          name: 'Codelpa',         currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'codelpa-peru.youorder.me',     name: 'Codelpa Perú',    currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'softys-cencocal.youorder.me',  name: 'Softys-Cencocal', currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'softys-dimak.youorder.me',     name: 'Dimak',           currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'surtiventas.youorder.me',      name: 'Surtiventas',     currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'elmuneco.youorder.me',         name: 'El Muñeco',       currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'marleycoffee.youorder.me',     name: 'Marley Coffee',   currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'prisa.youorder.me',            name: 'Prisa',           currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'caren.youorder.me',            name: 'Caren',           currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'coexito.youorder.me',          name: 'CoÉxito',         currency: 'USD', fxRate: COP_TO_USD, nativeCurrency: 'COP' },
+  { domain: 'bastien.youorder.me',          name: 'Bastien',         currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'sonrie.youorder.me',           name: 'Sonrie',          currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'expressdent.youorder.me',      name: 'ExpressDent',     currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
+  { domain: 'prisur.youorder.me',           name: 'Prisur',          currency: 'USD', fxRate: CLP_TO_USD, nativeCurrency: 'CLP' },
 ];
 
 const data = {
@@ -39,7 +39,7 @@ const data = {
 };
 
 for (const client of CLIENTS) {
-  const { domain, name, currency, fxRate = 1, statuses = ['processing'] } = client;
+  const { domain, name, currency, fxRate = 1, nativeCurrency = 'CLP', statuses = ['processing'] } = client;
   const statusFilter = statuses.length === 1 ? statuses[0] : { $in: statuses };
 
   // ── Totales all-time ─────────────────────────────────────
@@ -56,7 +56,7 @@ for (const client of CLIENTS) {
 
   if (!totales) {
     data.clients.push({
-      domain, name, currency, sinDatos: true,
+      domain, name, currency, nativeCurrency, sinDatos: true,
       ordenes: 0, comercios: 0, comerciosRegistrados: 0,
       ventaSinIVA: 0,
       primeraOrden: null, ultimaOrden: null, mensual: []
@@ -146,7 +146,7 @@ for (const client of CLIENTS) {
   }));
 
   data.clients.push({
-    domain, name, currency, sinDatos: false,
+    domain, name, currency, nativeCurrency, sinDatos: false,
     ordenes:          totales.ordenes,
     comercios,
     comerciosRegistrados,
