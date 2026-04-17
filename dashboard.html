@@ -535,11 +535,11 @@ function openClient(client, resetFilter = true) {
   if (resetFilter) {
     const years = [...new Set(client.mensual.map(m => m.year))].sort();
     activeFilter = { year: years[years.length - 1] ?? null, month: null };
+    document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   renderPeriodSelector(client);
   applyFilter();
-  document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── Gráfico ───────────────────────────────────────────────
