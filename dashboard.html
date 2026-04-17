@@ -45,7 +45,7 @@
     <div class="flex items-center gap-3">
       <div class="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">Y</div>
       <span class="font-semibold text-gray-900">YOM Sales</span>
-      <span id="hdr-subtitle" class="text-xs text-gray-400 hidden sm:block">Legacy Production · Todos los montos en CLP ($)</span>
+      <span id="hdr-subtitle" class="text-xs text-gray-400 hidden sm:block">Legacy Production · Montos en USD (US$)</span>
     </div>
     <div class="flex items-center gap-4">
       <div id="hdr-gmv" class="text-right hidden md:block">
@@ -191,9 +191,9 @@ function toggleSidebar() {
   }
 }
 
-// ── Formatter de moneda según cliente activo ──────────────
-function fmtCM(n) {
-  const cur = activeClient ? activeClient.currency : 'CLP';
+// ── Formatter de moneda — acepta currency explícita o usa la del cliente activo
+function fmtCM(n, cur) {
+  cur = cur || (activeClient ? activeClient.currency : 'USD');
   if (n == null) return '—';
   const sym = cur === 'USD' ? 'US$' : '$';
   const abs = Math.abs(n);
@@ -215,9 +215,14 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Timestamp
+  // Timestamp + tasa del día
   const d = new Date(YOM_DATA.extractedAt);
-  document.getElementById('hdr-ts').textContent = 'Actualizado ' + d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  let tsText = 'Actualizado ' + d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  if (YOM_DATA.fxRates && YOM_DATA.fxRates.CLP_TO_USD) {
+    const clpRate = Math.round(1 / YOM_DATA.fxRates.CLP_TO_USD);
+    tsText += ' · 1 USD = $' + clpRate.toLocaleString('es-CL') + ' CLP';
+  }
+  document.getElementById('hdr-ts').textContent = tsText;
 
   renderGlobal();
   renderGrid();
@@ -228,28 +233,26 @@ window.addEventListener('DOMContentLoaded', () => {
   if (first) openClient(first);
 });
 
-// ── KPIs globales (últimos 12 meses, solo CLP) ───────────
+// ── KPIs globales (últimos 12 meses, USD) ────────────────
 function renderGlobal() {
   const cl = YOM_DATA.clients.filter(c => !c.sinDatos);
 
-  // Sumar solo el período últimos 12m (usando mensual)
-  let gmv12 = 0, ords12 = 0, coms12 = new Set();
+  let gmv12 = 0, ords12 = 0;
   cl.forEach(c => {
     c.mensual.forEach(m => { gmv12 += m.ventaSinIVA; ords12 += m.ordenes; });
-    c.mensual.forEach(m => { /* comercios distintos no disponible globalmente */ });
   });
 
   const totalComs = cl.reduce((a,c) => a + c.comercios, 0);
   const totalReg  = cl.reduce((a,c) => a + c.comerciosRegistrados, 0);
   const actRate   = totalReg > 0 ? (totalComs / totalReg * 100) : 0;
 
-  document.getElementById('hdr-total').textContent = clpM(gmv12);
+  document.getElementById('hdr-total').textContent = fmtCM(gmv12, 'USD');
 
   document.getElementById('global-kpis').innerHTML = [
-    { label: 'Ventas (12m)',              value: clpM(gmv12),         sub: cl.length + ' clientes activos',       color: 'text-blue-700' },
-    { label: 'Pedidos (12m)',            value: num(ords12),          sub: 'órdenes procesadas',                  color: 'text-gray-900' },
-    { label: 'Comercios activos',        value: num(totalComs),       sub: 'con al menos 1 orden',                color: 'text-gray-900' },
-    { label: 'Tasa activación global',   value: pct(actRate),         sub: totalComs + ' de ' + num(totalReg) + ' registrados', color: actRate >= 50 ? 'text-green-700' : 'text-orange-600' },
+    { label: 'Ventas (12m)',            value: fmtCM(gmv12, 'USD'),  sub: cl.length + ' clientes activos',       color: 'text-blue-700' },
+    { label: 'Pedidos (12m)',           value: num(ords12),           sub: 'órdenes procesadas',                  color: 'text-gray-900' },
+    { label: 'Comercios activos',       value: num(totalComs),        sub: 'con al menos 1 orden',                color: 'text-gray-900' },
+    { label: 'Tasa activación global',  value: pct(actRate),          sub: totalComs + ' de ' + num(totalReg) + ' registrados', color: actRate >= 50 ? 'text-green-700' : 'text-orange-600' },
   ].map(k => `
     <div class="card p-4 hover:shadow-md transition-shadow">
       <div class="text-2xl font-bold ${k.color}">${k.value}</div>

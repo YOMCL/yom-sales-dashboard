@@ -18,9 +18,38 @@ jobs:
       - name: Install mongosh
         run: npm install -g mongosh
 
+      - name: Fetch exchange rates
+        run: |
+          node -e "
+          const https = require('https');
+          https.get('https://open.er-api.com/v6/latest/USD', res => {
+            let d = '';
+            res.on('data', c => d += c);
+            res.on('end', () => {
+              try {
+                const r = JSON.parse(d);
+                const clp = r.rates && r.rates.CLP ? (1 / r.rates.CLP).toFixed(8) : '0.00105';
+                const cop = r.rates && r.rates.COP ? (1 / r.rates.COP).toFixed(8) : '0.00024';
+                const fs = require('fs');
+                fs.appendFileSync(process.env.GITHUB_ENV, 'CLP_TO_USD=' + clp + '\n');
+                fs.appendFileSync(process.env.GITHUB_ENV, 'COP_TO_USD=' + cop + '\n');
+                console.log('CLP->USD:', clp, '| COP->USD:', cop);
+              } catch(e) {
+                require('fs').appendFileSync(process.env.GITHUB_ENV, 'CLP_TO_USD=0.00105\nCOP_TO_USD=0.00024\n');
+                console.log('API failed, using fallback rates');
+              }
+            });
+          }).on('error', () => {
+            require('fs').appendFileSync(process.env.GITHUB_ENV, 'CLP_TO_USD=0.00105\nCOP_TO_USD=0.00024\n');
+            console.log('Network error, using fallback rates');
+          });
+          "
+
       - name: Extract data from MongoDB
         env:
           MONGO_URI: ${{ secrets.MONGO_LEGACY_URI }}
+          CLP_TO_USD: ${{ env.CLP_TO_USD }}
+          COP_TO_USD: ${{ env.COP_TO_USD }}
         run: mongosh "$MONGO_URI" --quiet --file extract.js > data.js
 
       - name: Commit and push updated data.js

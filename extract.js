@@ -1,7 +1,13 @@
 // ============================================================
 // YOM Sales Dashboard — Extract Script
 // Uso: mongosh "<MONGO_URI>" --quiet --file extract.js > data.js
+// Con tasas explícitas (local):
+//   CLP_TO_USD=0.00105 COP_TO_USD=0.00024 mongosh "<URI>" --quiet --file extract.js > data.js
 // ============================================================
+
+// Tasas de cambio a USD (inyectadas por GH Actions, fallback para uso local)
+const CLP_TO_USD = parseFloat(process.env.CLP_TO_USD || '0.00105');
+const COP_TO_USD = parseFloat(process.env.COP_TO_USD || '0.00024');
 
 // Últimos 12 meses
 const date12ago = new Date();
@@ -9,25 +15,26 @@ date12ago.setMonth(date12ago.getMonth() - 12);
 
 const CLIENTS = [
   // Soprole usa 'pending' como status activo (su flujo no pasa a 'processing')
-  { domain: 'soprole.youorder.me',         name: 'Soprole',         currency: 'CLP', statuses: ['pending'] },
-  { domain: 'codelpa.youorder.me',          name: 'Codelpa',         currency: 'CLP' },
-  { domain: 'codelpa-peru.youorder.me',     name: 'Codelpa Perú',    currency: 'CLP' },
-  { domain: 'softys-cencocal.youorder.me',  name: 'Softys-Cencocal', currency: 'CLP' },
-  { domain: 'softys-dimak.youorder.me',     name: 'Dimak',           currency: 'CLP' },
-  { domain: 'surtiventas.youorder.me',      name: 'Surtiventas',     currency: 'CLP' },
-  { domain: 'elmuneco.youorder.me',         name: 'El Muñeco',       currency: 'CLP' },
-  { domain: 'marleycoffee.youorder.me',     name: 'Marley Coffee',   currency: 'CLP' },
-  { domain: 'prisa.youorder.me',            name: 'Prisa',           currency: 'CLP' },
-  { domain: 'caren.youorder.me',            name: 'Caren',           currency: 'CLP' },
-  { domain: 'coexito.youorder.me',          name: 'CoÉxito',         currency: 'CLP', fxRate: 0.25 },  // COP→CLP ÷4
-  { domain: 'bastien.youorder.me',          name: 'Bastien',         currency: 'CLP' },
-  { domain: 'sonrie.youorder.me',           name: 'Sonrie',          currency: 'CLP' },
-  { domain: 'expressdent.youorder.me',      name: 'ExpressDent',     currency: 'CLP' },
-  { domain: 'prisur.youorder.me',           name: 'Prisur',          currency: 'CLP' },
+  { domain: 'soprole.youorder.me',         name: 'Soprole',         currency: 'USD', fxRate: CLP_TO_USD, statuses: ['pending'] },
+  { domain: 'codelpa.youorder.me',          name: 'Codelpa',         currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'codelpa-peru.youorder.me',     name: 'Codelpa Perú',    currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'softys-cencocal.youorder.me',  name: 'Softys-Cencocal', currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'softys-dimak.youorder.me',     name: 'Dimak',           currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'surtiventas.youorder.me',      name: 'Surtiventas',     currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'elmuneco.youorder.me',         name: 'El Muñeco',       currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'marleycoffee.youorder.me',     name: 'Marley Coffee',   currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'prisa.youorder.me',            name: 'Prisa',           currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'caren.youorder.me',            name: 'Caren',           currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'coexito.youorder.me',          name: 'CoÉxito',         currency: 'USD', fxRate: COP_TO_USD },
+  { domain: 'bastien.youorder.me',          name: 'Bastien',         currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'sonrie.youorder.me',           name: 'Sonrie',          currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'expressdent.youorder.me',      name: 'ExpressDent',     currency: 'USD', fxRate: CLP_TO_USD },
+  { domain: 'prisur.youorder.me',           name: 'Prisur',          currency: 'USD', fxRate: CLP_TO_USD },
 ];
 
 const data = {
   extractedAt: new Date().toISOString(),
+  fxRates: { CLP_TO_USD, COP_TO_USD },
   clients: []
 };
 
