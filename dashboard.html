@@ -1129,22 +1129,22 @@
                 `;
               }).join("")}
               <tr class="bg-[#F9F7FF]/70 border-t-2 border-[#613BC0]/15 font-semibold">
-                <td class="px-4 py-3 text-left text-[#613BC0] text-[11px] uppercase tracking-wider">Total / Prom.</td>
+                <td class="px-4 py-3 text-left text-[#613BC0] text-[11px] uppercase tracking-wider">Prom.</td>
                 ${state.allColumns ? `
-                  <td class="px-4 py-3 text-right">${fmtNum(total.pedidos)}</td>
+                  <td class="px-4 py-3 text-right">${fmtNum(Math.round(total.pedidos / Math.max(months.length,1)))}</td>
                   <td class="px-4 py-3 text-right">${fmtNum(Math.round(total.vendedores / Math.max(months.length,1)))}</td>
                   <td class="px-4 py-3 text-right text-slate-500">${fmtNum(months[months.length-1]?.registradosVend || 0)}</td>
                   <td class="px-4 py-3 text-right">${fmtNum(Math.round(total.comercios / Math.max(months.length,1)))}</td>
                   <td class="px-4 py-3 text-right">${fmtPct(avg.actCom, 1)}</td>
-                  <td class="px-4 py-3 text-right text-slate-900">${fmtUSD(total.ventas)}</td>
+                  <td class="px-4 py-3 text-right text-slate-900">${fmtUSD(total.ventas / Math.max(months.length,1))}</td>
                   <td class="px-4 py-3 text-right">${avg.ventaVend > 0 ? fmtUSD(avg.ventaVend) : "—"}</td>
                   <td class="px-4 py-3 text-right">${fmtUSD(avg.ticket, { compact: false })}</td>
                   <td class="px-4 py-3 text-right">${avg.pedVend > 0 ? avg.pedVend.toFixed(1) : "—"}</td>
                   <td class="px-4 py-3 text-right">${avg.pedCom > 0 ? avg.pedCom.toFixed(1) : "—"}</td>
                   <td class="px-4 py-3 text-right">—</td>
                 ` : `
-                  <td class="px-4 py-3 text-right text-slate-900">${fmtUSD(total.ventas)}</td>
-                  <td class="px-4 py-3 text-right">${fmtNum(total.pedidos)}</td>
+                  <td class="px-4 py-3 text-right text-slate-900">${fmtUSD(total.ventas / Math.max(months.length,1))}</td>
+                  <td class="px-4 py-3 text-right">${fmtNum(Math.round(total.pedidos / Math.max(months.length,1)))}</td>
                   <td class="px-4 py-3 text-right">${fmtNum(Math.round(total.comercios / Math.max(months.length,1)))}</td>
                   <td class="px-4 py-3 text-right">—</td>
                 `}
